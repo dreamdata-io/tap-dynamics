@@ -8,6 +8,7 @@ free_tables = [
     "opportunities",
     "contacts",
     "systemusers",
+    "appmodules",
 ]
 
 advanced_tables = [
