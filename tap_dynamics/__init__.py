@@ -89,6 +89,11 @@ def main():
     except InvalidCredentials as e:
         LOGGER.error(e)
         sys.exit(5)
+    except Exception as e:
+        LOGGER.error("failed to connect to Dynamics OData service: {}".format(e))
+        if "invalid token" in str(e):
+            sys.exit(5)
+        sys.exit(1)
 
     catalog = discover(
         service, parsed_args.config.get("advanced_features_enabled", False)
