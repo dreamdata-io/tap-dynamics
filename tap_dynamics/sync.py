@@ -72,15 +72,17 @@ def sync_stream(service, state, start_date, stream, mdata):
         query = service.query(entitycls)
         if stream.tap_stream_id == "activityparties":
             activityparties_conditions = [
-                    "participationtypemask eq 1",
-                    "participationtypemask eq 2",
-                    "participationtypemask eq 3",
-                    "participationtypemask eq 4",
-                    "participationtypemask eq 5",
-                    "participationtypemask eq 6",
-                    "participationtypemask eq 7",
-                ]
-            filter_activityparties = "({})".format(" or ".join(activityparties_conditions))
+                "participationtypemask eq 1",
+                "participationtypemask eq 2",
+                "participationtypemask eq 3",
+                "participationtypemask eq 4",
+                "participationtypemask eq 5",
+                "participationtypemask eq 6",
+                "participationtypemask eq 7",
+            ]
+            filter_activityparties = "({})".format(
+                " or ".join(activityparties_conditions)
+            )
             query = query.filter(filter_activityparties)
 
     schema = stream.schema.to_dict()
@@ -115,13 +117,12 @@ def _sync_stream_incremental(service, entitycls, start):
         activitypointer_conditions = [
             "activitytypecode eq 'phonecall'",
             "activitytypecode eq 'appointment'",
-            "activitytypecode eq 'email'"
+            "activitytypecode eq 'email'",
         ]
         filter_activitypointers = "({})".format(" or ".join(activitypointer_conditions))
         base_query = base_query.filter(filter_activitypointers)
 
     base_query = base_query.order_by(getattr(entitycls, MODIFIED_DATE_FIELD).asc())
-    
     now = datetime.utcnow().replace(tzinfo=pytz.UTC)
     delta = timedelta(days=30)
 
@@ -182,8 +183,6 @@ def update_current_stream(state, stream_name=None):
 def sync(service, selected_streams, state, start_date):
     for stream in selected_streams:
         mdata = metadata.to_map(stream.metadata)
-        update_current_stream(state, stream.tap_stream_id)
-        sync_stream(service, state, start_date, stream, mdata)
 
         if stream.tap_stream_id in [
             "leads",
@@ -197,5 +196,15 @@ def sync(service, selected_streams, state, start_date):
             stream_name = f"{stream.tap_stream_id}_properties"
             schema = stream.schema.to_dict()
             singer.write_record(stream_name, schema)
+
+        update_current_stream(state, stream.tap_stream_id)
+        try:
+            sync_stream(service, state, start_date, stream, mdata)
+        except ODataError as e:
+            LOGGER.error("error syncing stream {}: {}".format(stream.tap_stream_id, e))
+            if e.status_code != "403":
+                LOGGER.error("skipping stream due to permissions error")
+                continue
+            raise
 
     update_current_stream(state)

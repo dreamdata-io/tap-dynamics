@@ -16,13 +16,11 @@ advanced_tables = [
     "msevtmgt_eventregistrations",
     "leads",
     "transactioncurrencies",
-    "salesorders",
-    "msdyncrm_linkedinformsubmissions",
     "activitypointers",
     "businessunits",
     "activityparties",
     "campaigns",
-    "mb_marketingautomationactivities"
+    "mb_marketingautomationactivities",
 ]
 
 
