@@ -182,8 +182,6 @@ def update_current_stream(state, stream_name=None):
 def sync(service, selected_streams, state, start_date):
     for stream in selected_streams:
         mdata = metadata.to_map(stream.metadata)
-        update_current_stream(state, stream.tap_stream_id)
-        sync_stream(service, state, start_date, stream, mdata)
 
         if stream.tap_stream_id in [
             "leads",
@@ -197,5 +195,15 @@ def sync(service, selected_streams, state, start_date):
             stream_name = f"{stream.tap_stream_id}_properties"
             schema = stream.schema.to_dict()
             singer.write_record(stream_name, schema)
+
+        update_current_stream(state, stream.tap_stream_id)
+        try:
+            sync_stream(service, state, start_date, stream, mdata)
+        except ODataError as e:
+            LOGGER.error("error syncing stream {}: {}".format(stream.tap_stream_id, e))
+            if e.status_code != "403":
+                LOGGER.error("skipping stream due to permissions error")
+                continue
+            raise
 
     update_current_stream(state)
