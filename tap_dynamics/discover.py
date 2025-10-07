@@ -1,5 +1,6 @@
 from singer.catalog import Catalog, CatalogEntry, Schema
 import singer
+from sync import get_field_descriptions
 
 LOGGER = singer.get_logger()
 
@@ -24,7 +25,7 @@ advanced_tables = [
 ]
 
 
-def get_schema(odata_schema):
+def get_schema(odata_schema, description_map):
     json_props = {}
     metadata = []
     pks = []
@@ -54,7 +55,10 @@ def get_schema(odata_schema):
         elif odata_type == "Edm.Boolean":
             json_type = "boolean"
 
-        prop_json_schema = {"type": ["null", json_type]}
+        prop_json_schema = {
+            "type": ["null", json_type],
+            "description": description_map.get(prop_name, None),
+        }
 
         if json_format:
             prop_json_schema["format"] = json_format
@@ -70,7 +74,7 @@ def get_schema(odata_schema):
     return json_schema, metadata, pks
 
 
-def discover(service, advanced_features_enabled=False):
+def discover(service, auth, domain, advanced_features_enabled=False):
     catalog = Catalog([])
 
     selected_tables = free_tables.copy()
@@ -79,8 +83,11 @@ def discover(service, advanced_features_enabled=False):
         selected_tables.extend(advanced_tables)
 
     for entity_name, entity in service.entities.items():
+        description_map = get_field_descriptions(entity_name, auth, domain)
         if entity_name in selected_tables:
-            schema_dict, metadata, pks = get_schema(entity.__odata_schema__)
+            schema_dict, metadata, pks = get_schema(
+                entity.__odata_schema__, description_map
+            )
             metadata.append({"breadcrumb": [], "metadata": {"selected": True}})
             schema = Schema.from_dict(schema_dict)
 
