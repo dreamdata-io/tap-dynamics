@@ -83,7 +83,14 @@ def discover(service, auth, domain, advanced_features_enabled=False):
         selected_tables.extend(advanced_tables)
 
     for entity_name, entity in service.entities.items():
-        description_map = get_field_descriptions(entity_name, auth, domain)
+        description_map = {}
+        try:
+            description_map = get_field_descriptions(entity_name, auth, domain)
+        except Exception as e:
+            LOGGER.warning(
+                f"Could not fetch field descriptions for entity '{entity_name}'. "
+                f"Proceeding without them. Error: {e}"
+            )
         if entity_name in selected_tables:
             schema_dict, metadata, pks = get_schema(
                 entity.__odata_schema__, description_map
