@@ -5,7 +5,6 @@ from singer import metrics, metadata, Transformer
 from singer.bookmarks import set_currently_syncing
 from odata import ODataError
 import requests
-from tap_dynamics.discover import discover
 
 LOGGER = singer.get_logger()
 
@@ -33,16 +32,41 @@ def sync_pick_lists(auth: requests.auth.AuthBase, domain: str):
     for record in paginate(auth, url):
         singer.write_record("pick_lists", record)
 
+def get_field_descriptions(entity_name, auth: requests.auth.AuthBase, domain: str):
+    allowed_entities = ["accounts", "contacts", "opportunities", "leads", "msevtmgt_eventregistrations", "msevtmgt_events", "activitypointers"]
+    if entity_name not in allowed_entities:
+        return {}
+    
+    entity_logical_name_map = {
+        "accounts": "account",
+        "contacts": "contact",
+        "opportunities": "opportunity",
+        "leads": "lead",
+        "msevtmgt_eventregistrations": "msevtmgt_eventregistration",
+        "msevtmgt_events": "msevtmgt_event",
+        "activitypointers": "activitypointer",
+    }
+    entity = entity_logical_name_map.get(entity_name, entity_name)
+    url = f"https://{domain}.dynamics.com/api/data/v9.0/EntityDefinitions(LogicalName='{entity}')/Attributes?$select=LogicalName,Description"
+    description_map = {}
+    for record in paginate(auth, url):
+        description = None
+        logical_name = record.get("LogicalName")
+        description_obj = record.get("Description", {}).get("UserLocalizedLabel", {})
+        if description_obj:
+            description = description_obj.get("Label", None)
+        if logical_name:
+            description_map[logical_name] = description
+    return description_map
 
 def paginate(auth, url):
-    while True:
+    while url:
         response = requests.get(url=url, auth=auth)
         data = response.json()
-        next_link = data.get("@odata.nextLink")
-        if not next_link:
-            break
-        url = next_link
+
         yield from data.get("value", [])
+
+        url = data.get("@odata.nextLink")
 
 
 def sync_stream(service, state, start_date, stream, mdata):
@@ -113,7 +137,6 @@ def _sync_stream_incremental(service, entitycls, start):
     base_query = service.query(entitycls)
 
     if entitycls.__odata_schema__["name"] == "activitypointer":
-        print("entered the activitypointer")
         activitypointer_conditions = [
             "activitytypecode eq 'phonecall'",
             "activitytypecode eq 'appointment'",

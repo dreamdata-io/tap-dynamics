@@ -96,7 +96,7 @@ def main():
         sys.exit(1)
 
     catalog = discover(
-        service, parsed_args.config.get("advanced_features_enabled", False)
+        service, auth, parsed_args.config["domain"], parsed_args.config.get("advanced_features_enabled", False)
     )
     sync(service, catalog.streams, parsed_args.state, parsed_args.config["start_date"])
 
