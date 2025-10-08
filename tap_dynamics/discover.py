@@ -1,6 +1,6 @@
 from singer.catalog import Catalog, CatalogEntry, Schema
 import singer
-from sync import get_field_descriptions
+from tap_dynamics.sync import get_field_descriptions
 
 LOGGER = singer.get_logger()
 
